@@ -10,61 +10,54 @@ pipeline {
         }
 
         stage('Test') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'dev'
-                }
-            }
+            when { anyOf { branch 'main'; branch 'dev' } }
             steps {
-                echo "Running tests..."
-                sh 'mvn test'
+                dir('javaapp-pipeline') {
+                    echo "Running tests..."
+                    sh 'mvn test'
+                }
             }
         }
 
         stage('Build') {
-            when {
-                branch 'main'
-            }
+            when { branch 'main' }
             steps {
-                echo "Building..."
-                sh 'mvn clean package -DskipTests'
+                dir('javaapp-pipeline') {
+                    echo "Building application..."
+                    sh 'mvn clean package -DskipTests'
+                }
             }
         }
 
-        stage('SonarQube Analysis') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'dev'
-                }
-            }
+        stage('SonarQube-Analysis') {
             steps {
-                withSonarQubeEnv('sonar') {
-                    sh '''
+                dir('javaapp-pipeline') {
+                    withSonarQubeEnv('sonar') {
+                        sh '''
                         mvn verify sonar:sonar \
                         -Dsonar.projectKey=java-app \
                         -Dsonar.projectName=java-app
-                    '''
+                        '''
+                    }
                 }
             }
         }
 
         stage('Deploy') {
-            when {
-                branch 'main'
-            }
+            when { branch 'main' }
             steps {
-                sh '''
-                    if pgrep -f "java -jar java-sample-21-1.0.0.jar" > /dev/null; then
-                        pkill -f "java -jar java-sample-21-1.0.0.jar"
-                        echo "App stopped"
-                    else
-                        echo "App was not running"
-                    fi
-                    
-                    JENKINS_NODE_COOKIE=dontKillme nohup java -jar java-sample-21-1.0.0.jar > app.log 2>&1 &
-                '''
+                dir('javaapp-pipeline/target') {
+                    sh '''
+                        if pgrep -f "java -jar java-sample-21-1.0.0.jar" > /dev/null; then
+                            pkill -f "java -jar java-sample-21-1.0.0.jar"
+                            echo "App was running and has been killed"
+                        else
+                            echo "App is not running"
+                        fi
+
+                        JENKINS_NODE_COOKIE=dontKillme nohup java -jar java-sample-21-1.0.0.jar > app.log 2>&1 &
+                    '''
+                }
             }
         }
     }
