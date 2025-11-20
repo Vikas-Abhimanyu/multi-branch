@@ -2,12 +2,18 @@ pipeline {
     agent any
 
     stages {
+	
+		stage('Checkout') {
+            steps {
+                git url: 'https://github.com/Vikas-Abhimanyu/multi-branch.git'
+            }
+        }
+
 
 		stage('Test') {
             when { anyOf { branch 'main'; branch 'dev' } }
             steps {
-				cd javaapp-pipeline
-                echo "Running tests..."
+				echo "Running tests..."
                 sh 'mvn test'
             }
         }
@@ -15,7 +21,6 @@ pipeline {
         stage('Build') {
             when { branch 'main' }    // Only run on main
             steps {
-                cd javaapp-pipeline
 				echo "Building application..."
                 sh 'mvn clean package -DskipTests'
             }
@@ -25,7 +30,6 @@ pipeline {
 			steps {
 			withSonarQubeEnv('sonar') {
 				sh '''
-				cd javaapp-pipeline
 				mvn verify sonar:sonar \
 				-Dsonar.projectKey=java-app \
 				-Dsonar.projectName=java-app 
@@ -37,7 +41,7 @@ pipeline {
         stage('Deploy') {
             when { branch 'main' }
             steps { sh '''
-				cd javaapp-pipeline/target
+				cd target/
         	if pgrep -f "java -jar java-sample-21-1.0.0.jar" > /dev/null; then
             	pkill -f "java -jar java-sample-21-1.0.0.jar"
             	echo "App was running and has been killed"
